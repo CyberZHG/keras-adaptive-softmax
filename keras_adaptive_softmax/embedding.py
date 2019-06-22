@@ -92,7 +92,7 @@ class AdaptiveEmbedding(keras.layers.Layer):
         else:
             self.embeddings, self.projections = [], []
             for i in range(len(self.cutoffs) - 1):
-                embed_dim = self.embed_dim / (self.div_val ** i)
+                embed_dim = self.embed_dim // (self.div_val ** i)
                 self.embeddings.append(self.add_weight(
                     shape=(self.cutoffs[i + 1] - self.cutoffs[i], embed_dim),
                     initializer=self.embeddings_initializer,
@@ -138,11 +138,14 @@ class AdaptiveEmbedding(keras.layers.Layer):
             if self.projections is not None:
                 out = K.dot(out, self.projections)
         else:
-            out = K.tile(K.expand_dims(K.zeros_like(inputs), axis=-1), (1,) * K.ndim(inputs) + (self.output_dim,))
+            out = K.tile(
+                K.expand_dims(K.zeros_like(inputs, dtype=K.floatx()), axis=-1),
+                (1,) * K.ndim(inputs) + (self.output_dim,),
+            )
             for i in range(len(self.cutoffs) - 1):
                 low, high = self.cutoffs[i], self.cutoffs[i + 1]
                 mask = K.cast(low <= inputs, K.floatx()) * K.cast(inputs < high, K.floatx())
-                selected = K.gather(self.embeddings[i], inputs * mask - low)
+                selected = K.gather(self.embeddings[i], (inputs - low) * K.cast(mask, 'int32'))
                 projected = K.dot(selected, self.projections[i])
                 out += projected * K.expand_dims(mask, axis=-1)
         if self.return_embeddings:
