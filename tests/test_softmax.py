@@ -25,6 +25,9 @@ class AppendWeights(keras.layers.Layer):
     def compute_output_shape(self, input_shape):
         return [input_shape] + [K.int_shape(w) for w in self.returns]
 
+    def compute_mask(self, inputs, mask=None):
+        return [mask] + [None] * len(self.returns)
+
     def call(self, inputs, **kwargs):
         return [inputs] + self.returns
 
