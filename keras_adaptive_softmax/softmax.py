@@ -195,16 +195,20 @@ class AdaptiveSoftmax(keras.layers.Layer):
                 if self.use_bias:
                     cluster_output = K.bias_add(cluster_output, self.biases[i])
                 if cluster_probs is None:
-                    cluster_output = K.dot(cluster_input, self.kernel_cluster)
+                    cluster_probs = K.dot(cluster_input, self.kernel_cluster)
                     if self.use_bias:
-                        cluster_output = K.bias_add(cluster_output, self.bias_cluster)
-                    cluster_probs = keras.activations.softmax(cluster_output, axis=-1)
+                        cluster_probs = K.bias_add(cluster_probs, self.bias_cluster)
+                    cluster_output = K.concatenate([cluster_output, cluster_probs], axis=-1)
+                    cluster_output = keras.activations.softmax(cluster_output, axis=-1)
+                    cluster_probs = cluster_output[..., -self.cluster_num:]
+                    cluster_output = cluster_output[..., :-self.cluster_num]
                 else:
+                    cluster_output = keras.activations.softmax(cluster_output, axis=-1)
                     cluster_output = cluster_output * K.expand_dims(cluster_probs[..., -i])
                 outputs.append(cluster_output)
             out = K.concatenate(outputs, axis=-1)
 
-        return keras.activations.softmax(out, axis=-1)
+        return out
 
     def get_config(self):
         config = {
