@@ -11,14 +11,25 @@ class TestEmbedding(TestCase):
 
     def test_sample_default(self):
         input_layer = keras.layers.Input(shape=(None,))
-        embed_layer = AdaptiveEmbedding(input_dim=3, output_dim=16, return_embeddings=True)(input_layer)
+        embed_layer = AdaptiveEmbedding(
+            input_dim=3,
+            output_dim=16,
+            return_embeddings=True,
+            return_projections=True,
+        )(input_layer)
         func = K.function([input_layer], embed_layer)
         outputs = func([np.array([[0, 1, 2]])])
         self.assertTrue(np.allclose(outputs[0], outputs[1]))
 
     def test_single_projection(self):
         input_layer = keras.layers.Input(shape=(None,))
-        embed_layer = AdaptiveEmbedding(input_dim=3, output_dim=16, embed_dim=5, return_embeddings=True)(input_layer)
+        embed_layer = AdaptiveEmbedding(
+            input_dim=3,
+            output_dim=16,
+            embed_dim=5,
+            return_embeddings=True,
+            return_projections=True,
+        )(input_layer)
         model = keras.models.Model(input_layer, embed_layer)
         model_path = os.path.join(tempfile.gettempdir(), 'test_ada_embed_%f.h5' % np.random.random())
         model.save(model_path)
@@ -125,6 +136,7 @@ class TestEmbedding(TestCase):
             div_val=2,
             mask_zero=True,
             return_embeddings=True,
+            return_projections=True,
         )
         func = K.function([input_layer], embed_layer(input_layer))
         embed_layer.set_weights([

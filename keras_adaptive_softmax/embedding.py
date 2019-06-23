@@ -1,6 +1,8 @@
 from .backend import keras, initializers, regularizers, constraints
 from .backend import backend as K
 
+__all__ = ['AdaptiveEmbedding']
+
 
 class AdaptiveEmbedding(keras.layers.Layer):
     """Turns positive integers (indexes) into dense vectors of fixed size.
@@ -44,6 +46,7 @@ class AdaptiveEmbedding(keras.layers.Layer):
                  kernel_constraint=None,
                  mask_zero=False,
                  return_embeddings=False,
+                 return_projections=False,
                  **kwargs):
         super(AdaptiveEmbedding, self).__init__(**kwargs)
 
@@ -59,15 +62,18 @@ class AdaptiveEmbedding(keras.layers.Layer):
             if self.cutoffs[-1] != input_dim:
                 self.cutoffs.append(input_dim)
         self.div_val = div_val
+
         self.embeddings_initializer = initializers.get(embeddings_initializer)
         self.embeddings_regularizer = regularizers.get(embeddings_regularizer)
         self.embeddings_constraint = constraints.get(embeddings_constraint)
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
+
         self.mask_zero = mask_zero
         self.supports_masking = mask_zero
         self.return_embeddings = return_embeddings
+        self.return_projections = return_projections
 
         self.embeddings = None
         self.projections = None
@@ -114,20 +120,36 @@ class AdaptiveEmbedding(keras.layers.Layer):
             output_mask = None
         else:
             output_mask = K.not_equal(inputs, 0)
+        if self.return_embeddings or self.return_projections:
+            output_mask = [output_mask]
         if self.return_embeddings:
             if self.div_val == 1:
-                output_mask = [output_mask, None]
+                output_mask += [None]
             else:
-                output_mask = [output_mask] + [None] * len(self.embeddings)
+                output_mask += [None] * len(self.embeddings)
+        if self.return_projections:
+            if self.div_val == 1:
+                if self.projections is not None:
+                    output_mask += [None]
+            else:
+                output_mask += [None] * len(self.projections)
         return output_mask
 
     def compute_output_shape(self, input_shape):
         output_shape = input_shape + (self.output_dim,)
+        if self.return_embeddings or self.return_projections:
+            output_shape = [output_shape]
         if self.return_embeddings:
             if self.div_val == 1:
-                output_shape = [output_shape, K.int_shape(self.embeddings)]
+                output_shape += [K.int_shape(self.embeddings)]
             else:
-                output_shape = [output_shape] + [K.int_shape(embed) for embed in self.embeddings]
+                output_shape += [K.int_shape(embed) for embed in self.embeddings]
+        if self.return_projections:
+            if self.div_val == 1:
+                if self.projections is not None:
+                    output_shape += [K.int_shape(self.projections)]
+            else:
+                output_shape += [K.int_shape(proj) for proj in self.projections]
         return output_shape
 
     def call(self, inputs, **kwargs):
@@ -148,11 +170,19 @@ class AdaptiveEmbedding(keras.layers.Layer):
                 selected = K.gather(self.embeddings[i], (inputs - low) * K.cast(mask, 'int32'))
                 projected = K.dot(selected, self.projections[i])
                 out += projected * K.expand_dims(mask, axis=-1)
+        if self.return_embeddings or self.return_projections:
+            out = [out]
         if self.return_embeddings:
             if self.div_val == 1:
-                out = [out, self.embeddings]
+                out += [self.embeddings]
             else:
-                out = [out] + [K.identity(embed) for embed in self.embeddings]
+                out += [K.identity(embed) for embed in self.embeddings]
+        if self.return_projections:
+            if self.div_val == 1:
+                if self.projections is not None:
+                    out += [self.projections]
+            else:
+                out += [K.identity(proj) for proj in self.projections]
         return out
 
     def get_config(self):
@@ -170,6 +200,7 @@ class AdaptiveEmbedding(keras.layers.Layer):
             'kernel_constraint': constraints.serialize(self.kernel_constraint),
             'mask_zero': self.mask_zero,
             'return_embeddings': self.return_embeddings,
+            'return_projections': self.return_projections,
          }
         base_config = super(AdaptiveEmbedding, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
