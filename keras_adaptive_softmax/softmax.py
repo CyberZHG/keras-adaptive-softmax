@@ -14,6 +14,7 @@ class AdaptiveSoftmax(keras.layers.Layer):
         cutoffs: list of ints. Indices of splitting points.
         div_val: int >= 0. The scaling parameter of embedding.
         use_bias: Boolean. Whether to bias terms.
+        force_projection: Boolean. Add projection even if output_dim equals to embed_dim.
         bind_embeddings: list of boolean. Whether to use the existed embeddings as mapping.
         bind_projections: list of boolean. Whether to use the existed projections as mapping.
 
@@ -29,6 +30,7 @@ class AdaptiveSoftmax(keras.layers.Layer):
 
     def __init__(self, input_dim, output_dim, embed_dim=None,
                  cutoffs=None, div_val=1, use_bias=True,
+                 force_projection=None,
                  embeddings_initializer='uniform',
                  embeddings_regularizer=None,
                  embeddings_constraint=None,
@@ -56,6 +58,12 @@ class AdaptiveSoftmax(keras.layers.Layer):
                 self.cutoffs.append(output_dim)
         self.div_val = div_val
         self.use_bias = use_bias
+        self.force_projection = force_projection
+        if force_projection is None:
+            if div_val == 1:
+                self.force_projection = False
+            else:
+                self.force_projection = True
         self.cluster_num = 0
         if self.cutoffs is not None:
             self.cluster_num = len(self.cutoffs) - 2
@@ -90,7 +98,7 @@ class AdaptiveSoftmax(keras.layers.Layer):
                     constraint=self.embeddings_constraint,
                     name='embeddings',
                 )
-            if self.embed_dim != self.input_dim:
+            if self.embed_dim != self.input_dim or self.force_projection:
                 if not self.bind_projections[0]:
                     self.projections = self.add_weight(
                         shape=(self.embed_dim, self.input_dim),
@@ -141,13 +149,16 @@ class AdaptiveSoftmax(keras.layers.Layer):
                 if self.bind_projections[i]:
                     self.projections.append(None)
                 else:
-                    self.projections.append(self.add_weight(
-                        shape=(embed_dim, self.input_dim),
-                        initializer=self.kernel_initializer,
-                        regularizer=self.kernel_regularizer,
-                        constraint=self.kernel_constraint,
-                        name='kernel-{}'.format(i),
-                    ))
+                    if embed_dim != self.input_dim or self.force_projection:
+                        self.projections.append(self.add_weight(
+                            shape=(embed_dim, self.input_dim),
+                            initializer=self.kernel_initializer,
+                            regularizer=self.kernel_regularizer,
+                            constraint=self.kernel_constraint,
+                            name='kernel-{}'.format(i),
+                        ))
+                    else:
+                        self.projections.append(None)
                 if self.use_bias:
                     self.biases.append(self.add_weight(
                         shape=(self.cutoffs[i + 1] - self.cutoffs[i],),
@@ -171,7 +182,7 @@ class AdaptiveSoftmax(keras.layers.Layer):
         projections = inputs[1 + (self.cluster_num + 1):]
         inputs = inputs[0]
         if self.div_val == 1:
-            if self.embed_dim != self.input_dim:
+            if self.embed_dim != self.input_dim or self.force_projection:
                 projection = self.projections
                 if projection is None:
                     projection = projections[0]
@@ -186,10 +197,14 @@ class AdaptiveSoftmax(keras.layers.Layer):
             cluster_probs = None
             outputs = []
             for i in range(len(self.cutoffs) - 1):
-                projection = self.projections[i]
-                if projection is None:
-                    projection = projections[i]
-                cluster_input = K.dot(inputs, K.transpose(projection))
+                embed_dim = self.embed_dim // (self.div_val ** i)
+                if embed_dim != self.input_dim or self.force_projection:
+                    projection = self.projections[i]
+                    if projection is None:
+                        projection = projections[i]
+                    cluster_input = K.dot(inputs, K.transpose(projection))
+                else:
+                    cluster_input = inputs
                 embedding = self.embeddings[i]
                 if embedding is None:
                     embedding = embeddings[i]
@@ -220,6 +235,7 @@ class AdaptiveSoftmax(keras.layers.Layer):
             'cutoffs': self.cutoffs,
             'div_val': self.div_val,
             'use_bias': self.use_bias,
+            'force_projection': self.force_projection,
             'embeddings_initializer': initializers.serialize(self.embeddings_initializer),
             'embeddings_regularizer': regularizers.serialize(self.embeddings_regularizer),
             'embeddings_constraint': constraints.serialize(self.embeddings_constraint),
