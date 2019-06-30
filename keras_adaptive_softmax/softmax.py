@@ -206,7 +206,7 @@ class AdaptiveSoftmax(keras.layers.Layer):
                     cluster_output = cluster_output[..., :-self.cluster_num]
                 else:
                     cluster_output = keras.activations.softmax(cluster_output, axis=-1)
-                    cluster_output = cluster_output * K.expand_dims(cluster_probs[..., -i])
+                    cluster_output = cluster_output * K.expand_dims(cluster_probs[..., i - 1])
                 outputs.append(cluster_output)
             out = K.concatenate(outputs, axis=-1)
 
