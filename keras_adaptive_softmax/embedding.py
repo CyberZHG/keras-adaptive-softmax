@@ -13,6 +13,7 @@ class AdaptiveEmbedding(keras.layers.Layer):
         embed_dim: int > 0. Dimension of the dense embedding.
         cutoffs: list of ints. Indices of splitting points.
         div_val: int >= 0. The scaling parameter of embedding.
+        force_projection: Boolean. Add projection even if output_dim equals to embed_dim.
         embeddings_initializer: Initializer for the `embeddings` matrix.
         embeddings_regularizer: Regularizer function applied to the `embeddings` matrix.
         embeddings_constraint: Constraint function applied to the `embeddings` matrix.
@@ -38,6 +39,7 @@ class AdaptiveEmbedding(keras.layers.Layer):
 
     def __init__(self, input_dim, output_dim, embed_dim=None,
                  cutoffs=None, div_val=1,
+                 force_projection=None,
                  embeddings_initializer='uniform',
                  embeddings_regularizer=None,
                  embeddings_constraint=None,
@@ -62,6 +64,12 @@ class AdaptiveEmbedding(keras.layers.Layer):
             if self.cutoffs[-1] != input_dim:
                 self.cutoffs.append(input_dim)
         self.div_val = div_val
+        self.force_projection = force_projection
+        if force_projection is None:
+            if div_val == 1:
+                self.force_projection = False
+            else:
+                self.force_projection = True
 
         self.embeddings_initializer = initializers.get(embeddings_initializer)
         self.embeddings_regularizer = regularizers.get(embeddings_regularizer)
@@ -87,7 +95,7 @@ class AdaptiveEmbedding(keras.layers.Layer):
                 constraint=self.embeddings_constraint,
                 name='embeddings',
             )
-            if self.embed_dim != self.output_dim:
+            if self.embed_dim != self.output_dim or self.force_projection:
                 self.projections = self.add_weight(
                     shape=(self.embed_dim, self.output_dim),
                     initializer=self.kernel_initializer,
@@ -106,8 +114,11 @@ class AdaptiveEmbedding(keras.layers.Layer):
                     constraint=self.embeddings_constraint,
                     name='embeddings-{}'.format(i),
                 ))
+                projection_shape = (embed_dim, self.output_dim)
+                if embed_dim == self.output_dim and not self.force_projection:
+                    projection_shape = ()
                 self.projections.append(self.add_weight(
-                    shape=(embed_dim, self.output_dim),
+                    shape=projection_shape,
                     initializer=self.kernel_initializer,
                     regularizer=self.kernel_regularizer,
                     constraint=self.kernel_constraint,
@@ -157,7 +168,7 @@ class AdaptiveEmbedding(keras.layers.Layer):
             inputs = K.cast(inputs, 'int32')
         if self.div_val == 1:
             out = K.gather(self.embeddings, inputs)
-            if self.projections is not None:
+            if self.embed_dim != self.output_dim or self.force_projection:
                 out = K.dot(out, self.projections)
         else:
             out = K.tile(
@@ -165,10 +176,14 @@ class AdaptiveEmbedding(keras.layers.Layer):
                 (1,) * K.ndim(inputs) + (self.output_dim,),
             )
             for i in range(len(self.cutoffs) - 1):
+                embed_dim = self.embed_dim // (self.div_val ** i)
                 low, high = self.cutoffs[i], self.cutoffs[i + 1]
                 mask = K.cast(low <= inputs, K.floatx()) * K.cast(inputs < high, K.floatx())
                 selected = K.gather(self.embeddings[i], (inputs - low) * K.cast(mask, 'int32'))
-                projected = K.dot(selected, self.projections[i])
+                if embed_dim != self.output_dim or self.force_projection:
+                    projected = K.dot(selected, self.projections[i])
+                else:
+                    projected = selected
                 out += projected * K.expand_dims(mask, axis=-1)
         if self.return_embeddings or self.return_projections:
             out = [out]
@@ -192,6 +207,7 @@ class AdaptiveEmbedding(keras.layers.Layer):
             'embed_dim': self.embed_dim,
             'cutoffs': self.cutoffs,
             'div_val': self.div_val,
+            'force_projection': self.force_projection,
             'embeddings_initializer': initializers.serialize(self.embeddings_initializer),
             'embeddings_regularizer': regularizers.serialize(self.embeddings_regularizer),
             'embeddings_constraint': constraints.serialize(self.embeddings_constraint),

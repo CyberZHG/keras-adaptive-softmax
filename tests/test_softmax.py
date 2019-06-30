@@ -42,7 +42,10 @@ class TestSoftmax(TestCase):
             return_embeddings=True,
             return_projections=True,
         )(input_layer)
-        softmax_layer = AdaptiveSoftmax(input_dim=16, output_dim=3)(embed_layer)
+        softmax_layer = AdaptiveSoftmax(
+            input_dim=16,
+            output_dim=3,
+        )(embed_layer)
         model = keras.models.Model(input_layer, softmax_layer)
         model_path = os.path.join(tempfile.gettempdir(), 'test_ada_softmax_%f.h5' % np.random.random())
         model.save(model_path)
@@ -75,6 +78,54 @@ class TestSoftmax(TestCase):
         })
         model.summary()
 
+    def test_force_projection_no_binding(self):
+        input_layer = keras.layers.Input(shape=(None,))
+        embed_layer = AdaptiveEmbedding(
+            input_dim=3,
+            output_dim=16,
+            force_projection=True,
+            return_embeddings=True,
+            return_projections=True,
+        )(input_layer)
+        softmax_layer = AdaptiveSoftmax(
+            input_dim=16,
+            output_dim=3,
+            force_projection=True,
+        )(embed_layer)
+        model = keras.models.Model(input_layer, softmax_layer)
+        model_path = os.path.join(tempfile.gettempdir(), 'test_ada_softmax_%f.h5' % np.random.random())
+        model.save(model_path)
+        model = keras.models.load_model(model_path, custom_objects={
+            'AdaptiveEmbedding': AdaptiveEmbedding,
+            'AdaptiveSoftmax': AdaptiveSoftmax,
+        })
+        model.summary()
+
+    def test_force_projection_bind(self):
+        input_layer = keras.layers.Input(shape=(None,))
+        embed_layer = AdaptiveEmbedding(
+            input_dim=3,
+            output_dim=16,
+            force_projection=True,
+            return_embeddings=True,
+            return_projections=True,
+        )(input_layer)
+        softmax_layer = AdaptiveSoftmax(
+            input_dim=16,
+            output_dim=3,
+            force_projection=True,
+            bind_embeddings=True,
+            bind_projections=True,
+        )(embed_layer)
+        model = keras.models.Model(input_layer, softmax_layer)
+        model_path = os.path.join(tempfile.gettempdir(), 'test_ada_softmax_%f.h5' % np.random.random())
+        model.save(model_path)
+        model = keras.models.load_model(model_path, custom_objects={
+            'AdaptiveEmbedding': AdaptiveEmbedding,
+            'AdaptiveSoftmax': AdaptiveSoftmax,
+        })
+        model.summary()
+
     def test_single_projection_no_binding(self):
         input_layer = keras.layers.Input(shape=(None,))
         embed_layer = AdaptiveEmbedding(
@@ -84,7 +135,11 @@ class TestSoftmax(TestCase):
             return_embeddings=True,
             return_projections=True,
         )(input_layer)
-        softmax_layer = AdaptiveSoftmax(input_dim=16, output_dim=3, embed_dim=5)(embed_layer)
+        softmax_layer = AdaptiveSoftmax(
+            input_dim=16,
+            output_dim=3,
+            embed_dim=5,
+        )(embed_layer)
         model = keras.models.Model(input_layer, softmax_layer)
         model_path = os.path.join(tempfile.gettempdir(), 'test_ada_softmax_%f.h5' % np.random.random())
         model.save(model_path)
@@ -165,6 +220,64 @@ class TestSoftmax(TestCase):
             embed_dim=8,
             cutoffs=[10, 20, 25],
             div_val=2,
+            bind_embeddings=True,
+            bind_projections=True,
+        )(embed_layer)
+        model = keras.models.Model(input_layer, softmax_layer)
+        model_path = os.path.join(tempfile.gettempdir(), 'test_ada_softmax_%f.h5' % np.random.random())
+        model.save(model_path)
+        model = keras.models.load_model(model_path, custom_objects={
+            'AdaptiveEmbedding': AdaptiveEmbedding,
+            'AdaptiveSoftmax': AdaptiveSoftmax,
+        })
+        model.summary()
+
+    def test_cutoffs_no_projection_no_binding(self):
+        input_layer = keras.layers.Input(shape=(None,))
+        embed_layer = AdaptiveEmbedding(
+            input_dim=30,
+            output_dim=8,
+            cutoffs=[10, 20, 25],
+            div_val=2,
+            mask_zero=True,
+            force_projection=False,
+            return_embeddings=True,
+            return_projections=True,
+        )(input_layer)
+        softmax_layer = AdaptiveSoftmax(
+            input_dim=8,
+            output_dim=30,
+            cutoffs=[10, 20, 25],
+            div_val=2,
+            force_projection=False,
+        )(embed_layer)
+        model = keras.models.Model(input_layer, softmax_layer)
+        model_path = os.path.join(tempfile.gettempdir(), 'test_ada_softmax_%f.h5' % np.random.random())
+        model.save(model_path)
+        model = keras.models.load_model(model_path, custom_objects={
+            'AdaptiveEmbedding': AdaptiveEmbedding,
+            'AdaptiveSoftmax': AdaptiveSoftmax,
+        })
+        model.summary()
+
+    def test_cutoffs_no_projection_bind(self):
+        input_layer = keras.layers.Input(shape=(None,))
+        embed_layer = AdaptiveEmbedding(
+            input_dim=30,
+            output_dim=8,
+            cutoffs=[10, 20, 25],
+            div_val=2,
+            mask_zero=True,
+            force_projection=False,
+            return_embeddings=True,
+            return_projections=True,
+        )(input_layer)
+        softmax_layer = AdaptiveSoftmax(
+            input_dim=8,
+            output_dim=30,
+            cutoffs=[10, 20, 25],
+            div_val=2,
+            force_projection=False,
             bind_embeddings=True,
             bind_projections=True,
         )(embed_layer)
@@ -511,4 +624,5 @@ class TestSoftmax(TestCase):
         inputs = np.random.randint(0, 30, (128, 10))
         outputs = model.predict(inputs).argmax(axis=-1)
         outputs *= np.not_equal(inputs, 0).astype('int32')
-        self.assertEqual(inputs.tolist(), outputs.tolist())
+        diff = np.sum(np.not_equal(inputs, outputs))
+        self.assertLess(diff, 5)
