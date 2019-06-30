@@ -193,6 +193,7 @@ class AdaptiveSoftmax(keras.layers.Layer):
             out = K.dot(inputs, K.transpose(embedding))
             if self.use_bias:
                 out = K.bias_add(out, self.biases)
+            out = keras.activations.softmax(out, axis=-1)
         else:
             cluster_probs = None
             outputs = []
