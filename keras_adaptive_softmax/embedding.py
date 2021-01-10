@@ -191,13 +191,13 @@ class AdaptiveEmbedding(keras.layers.Layer):
             if self.div_val == 1:
                 out += [self.embeddings]
             else:
-                out += [K.identity(embed) for embed in self.embeddings]
+                out += [embed + 0.0 for embed in self.embeddings]
         if self.return_projections:
             if self.div_val == 1:
                 if self.projections is not None:
                     out += [self.projections]
             else:
-                out += [K.identity(proj) for proj in self.projections]
+                out += [proj + 0.0 for proj in self.projections]
         return out
 
     def get_config(self):
