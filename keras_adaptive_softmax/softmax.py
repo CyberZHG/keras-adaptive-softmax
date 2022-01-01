@@ -1,5 +1,5 @@
-from .backend import keras, initializers, regularizers, constraints
-from .backend import backend as K
+from tensorflow import keras
+from tensorflow.keras import backend as K
 
 __all__ = ['AdaptiveSoftmax']
 
@@ -68,15 +68,15 @@ class AdaptiveSoftmax(keras.layers.Layer):
         if self.cutoffs is not None:
             self.cluster_num = len(self.cutoffs) - 2
 
-        self.embeddings_initializer = initializers.get(embeddings_initializer)
-        self.embeddings_regularizer = regularizers.get(embeddings_regularizer)
-        self.embeddings_constraint = constraints.get(embeddings_constraint)
-        self.kernel_initializer = initializers.get(kernel_initializer)
-        self.kernel_regularizer = regularizers.get(kernel_regularizer)
-        self.kernel_constraint = constraints.get(kernel_constraint)
-        self.bias_initializer = initializers.get(bias_initializer)
-        self.bias_regularizer = regularizers.get(bias_regularizer)
-        self.bias_constraint = constraints.get(bias_constraint)
+        self.embeddings_initializer = keras.initializers.get(embeddings_initializer)
+        self.embeddings_regularizer = keras.regularizers.get(embeddings_regularizer)
+        self.embeddings_constraint = keras.constraints.get(embeddings_constraint)
+        self.kernel_initializer = keras.initializers.get(kernel_initializer)
+        self.kernel_regularizer = keras.regularizers.get(kernel_regularizer)
+        self.kernel_constraint = keras.constraints.get(kernel_constraint)
+        self.bias_initializer = keras.initializers.get(bias_initializer)
+        self.bias_regularizer = keras.regularizers.get(bias_regularizer)
+        self.bias_constraint = keras.constraints.get(bias_constraint)
 
         self.bind_embeddings = bind_embeddings
         if not isinstance(bind_embeddings, list):
@@ -237,12 +237,12 @@ class AdaptiveSoftmax(keras.layers.Layer):
             'div_val': self.div_val,
             'use_bias': self.use_bias,
             'force_projection': self.force_projection,
-            'embeddings_initializer': initializers.serialize(self.embeddings_initializer),
-            'embeddings_regularizer': regularizers.serialize(self.embeddings_regularizer),
-            'embeddings_constraint': constraints.serialize(self.embeddings_constraint),
-            'kernel_initializer': initializers.serialize(self.kernel_initializer),
-            'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-            'kernel_constraint': constraints.serialize(self.kernel_constraint),
+            'embeddings_initializer': keras.initializers.serialize(self.embeddings_initializer),
+            'embeddings_regularizer': keras.regularizers.serialize(self.embeddings_regularizer),
+            'embeddings_constraint': keras.constraints.serialize(self.embeddings_constraint),
+            'kernel_initializer': keras.initializers.serialize(self.kernel_initializer),
+            'kernel_regularizer': keras.regularizers.serialize(self.kernel_regularizer),
+            'kernel_constraint': keras.constraints.serialize(self.kernel_constraint),
             'bind_embeddings': self.bind_embeddings,
             'bind_projections': self.bind_projections,
          }

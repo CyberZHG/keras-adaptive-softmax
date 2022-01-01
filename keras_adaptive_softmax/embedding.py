@@ -1,5 +1,5 @@
-from .backend import keras, initializers, regularizers, constraints
-from .backend import backend as K
+from tensorflow import keras
+from tensorflow.keras import backend as K
 
 __all__ = ['AdaptiveEmbedding']
 
@@ -71,12 +71,12 @@ class AdaptiveEmbedding(keras.layers.Layer):
             else:
                 self.force_projection = True
 
-        self.embeddings_initializer = initializers.get(embeddings_initializer)
-        self.embeddings_regularizer = regularizers.get(embeddings_regularizer)
-        self.embeddings_constraint = constraints.get(embeddings_constraint)
-        self.kernel_initializer = initializers.get(kernel_initializer)
-        self.kernel_regularizer = regularizers.get(kernel_regularizer)
-        self.kernel_constraint = constraints.get(kernel_constraint)
+        self.embeddings_initializer = keras.initializers.get(embeddings_initializer)
+        self.embeddings_regularizer = keras.regularizers.get(embeddings_regularizer)
+        self.embeddings_constraint = keras.constraints.get(embeddings_constraint)
+        self.kernel_initializer = keras.initializers.get(kernel_initializer)
+        self.kernel_regularizer = keras.regularizers.get(kernel_regularizer)
+        self.kernel_constraint = keras.constraints.get(kernel_constraint)
 
         self.mask_zero = mask_zero
         self.supports_masking = mask_zero
@@ -208,12 +208,12 @@ class AdaptiveEmbedding(keras.layers.Layer):
             'cutoffs': self.cutoffs,
             'div_val': self.div_val,
             'force_projection': self.force_projection,
-            'embeddings_initializer': initializers.serialize(self.embeddings_initializer),
-            'embeddings_regularizer': regularizers.serialize(self.embeddings_regularizer),
-            'embeddings_constraint': constraints.serialize(self.embeddings_constraint),
-            'kernel_initializer': initializers.serialize(self.kernel_initializer),
-            'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-            'kernel_constraint': constraints.serialize(self.kernel_constraint),
+            'embeddings_initializer': keras.initializers.serialize(self.embeddings_initializer),
+            'embeddings_regularizer': keras.regularizers.serialize(self.embeddings_regularizer),
+            'embeddings_constraint': keras.constraints.serialize(self.embeddings_constraint),
+            'kernel_initializer': keras.initializers.serialize(self.kernel_initializer),
+            'kernel_regularizer': keras.regularizers.serialize(self.kernel_regularizer),
+            'kernel_constraint': keras.constraints.serialize(self.kernel_constraint),
             'mask_zero': self.mask_zero,
             'return_embeddings': self.return_embeddings,
             'return_projections': self.return_projections,

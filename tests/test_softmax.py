@@ -1,9 +1,11 @@
 import os
 import tempfile
 from unittest import TestCase
+
 import numpy as np
-from keras_adaptive_softmax.backend import keras
-from keras_adaptive_softmax.backend import backend as K
+from tensorflow import keras
+from tensorflow.keras import backend as K
+
 from keras_adaptive_softmax import AdaptiveEmbedding, AdaptiveSoftmax
 
 
